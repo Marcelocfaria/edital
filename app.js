@@ -518,6 +518,7 @@ function saveTopico() {
   const bloco  = BLOCOS.find(b => b.id === blocoId);
   const topico = bloco?.topicos[topicoIdx] || '';
 
+  // Inclui a chave como identificador único para o Sheets
   state.topicos[key] = { status, nota, data };
 
   // Registrar atividade
@@ -537,7 +538,14 @@ function saveTopico() {
 
   // Sincroniza com Sheets se configurado
   if (state.config.writeUrl) {
-    sendToSheet({ materia: bloco?.nome, topico, status, nota, data });
+    sendToSheet({
+      chave: key,           // ← identificador único (ex: "lp-0")
+      materia: bloco?.nome,
+      topico,
+      status,
+      nota,
+      data,
+    });
   }
 }
 
@@ -591,28 +599,55 @@ async function syncSheets() {
   }
 }
 
+// =====================================================================
+// CORREÇÃO: parseCSVandApply usa a coluna "chave" como identificador
+// único (ex: "lp-0"), eliminando o risco de match errado por nome.
+// O CSV deve ter as colunas: chave, materia, topico, status, nota, data
+// =====================================================================
 function parseCSVandApply(csv) {
   const lines = csv.split('\n').filter(Boolean);
   if (lines.length < 2) return;
-  // Espera header: materia, topico, status, nota, data
+
+  // Lê o cabeçalho para mapear colunas dinamicamente
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+  const idx = {
+    chave:   headers.indexOf('chave'),
+    materia: headers.indexOf('materia'),
+    topico:  headers.indexOf('topico'),
+    status:  headers.indexOf('status'),
+    nota:    headers.indexOf('nota'),
+    data:    headers.indexOf('data'),
+  };
+
   lines.slice(1).forEach(line => {
     const cols = parseCSVLine(line);
-    if (cols.length < 3) return;
-    const [materia, topico, status, nota, data] = cols;
+    if (cols.length < 4) return;
 
-    // Encontrar a chave correspondente
-    BLOCOS.forEach(bloco => {
-      bloco.topicos.forEach((t, i) => {
-        if (t.toLowerCase().includes(topico.toLowerCase()) ||
-            topico.toLowerCase().includes(t.toLowerCase().substring(0, 20))) {
-          const key = `${bloco.id}-${i}`;
-          if (['pendente','andamento','concluido'].includes(status)) {
-            state.topicos[key] = { status, nota: nota || '', data: data || '' };
+    const chave  = idx.chave  >= 0 ? cols[idx.chave]  : null;
+    const status = idx.status >= 0 ? cols[idx.status]  : '';
+    const nota   = idx.nota   >= 0 ? cols[idx.nota]    : '';
+    const data   = idx.data   >= 0 ? cols[idx.data]    : '';
+
+    if (!['pendente', 'andamento', 'concluido'].includes(status)) return;
+
+    if (chave) {
+      // Caminho ideal: usa a chave direta (ex: "lp-0")
+      state.topicos[chave] = { status, nota, data };
+    } else {
+      // Fallback: match por nome do tópico (comportamento anterior)
+      const topico = idx.topico >= 0 ? cols[idx.topico] : '';
+      BLOCOS.forEach(bloco => {
+        bloco.topicos.forEach((t, i) => {
+          if (t.toLowerCase().includes(topico.toLowerCase()) ||
+              topico.toLowerCase().includes(t.toLowerCase().substring(0, 20))) {
+            const key = `${bloco.id}-${i}`;
+            state.topicos[key] = { status, nota, data };
           }
-        }
+        });
       });
-    });
+    }
   });
+
   saveState();
   renderMaterias();
   renderBlocos();
@@ -634,16 +669,24 @@ function parseCSVLine(line) {
   return result;
 }
 
+// =====================================================================
+// CORREÇÃO: sendToSheet usa Content-Type text/plain para evitar
+// o preflight CORS que bloqueia requisições ao Apps Script.
+// =====================================================================
 async function sendToSheet(data) {
   if (!state.config.writeUrl) return;
   try {
     await fetch(state.config.writeUrl, {
       method: 'POST',
       mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'text/plain', // evita preflight OPTIONS bloqueado pelo Apps Script
+      },
       body: JSON.stringify(data),
     });
-  } catch(e) { console.warn('Erro ao enviar para Sheets:', e); }
+  } catch(e) {
+    console.warn('Erro ao enviar para Sheets:', e);
+  }
 }
 
 // =====================================================================
