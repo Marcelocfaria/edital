@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyMap · TDAS DF</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <div>
+        <div class="logo-title">StudyMap</div>
+        <div class="logo-sub">TDAS · Cuidador Social</div>
+      </div>
+    </div>
+
+    <nav class="nav-menu">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-icon">◈</span> Dashboard
+      </button>
+      <button class="nav-item" data-view="materias">
+        <span class="nav-icon">◉</span> Matérias
+      </button>
+      <button class="nav-item" data-view="progresso">
+        <span class="nav-icon">◎</span> Progresso
+      </button>
+      <button class="nav-item" data-view="config">
+        <span class="nav-icon">◇</span> Configurar Sheets
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sync-status" id="syncStatus">
+        <span class="sync-dot"></span>
+        <span id="syncText">Não sincronizado</span>
+      </div>
+      <button class="btn-sync" id="btnSync" onclick="syncSheets()">↑ Sincronizar</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD VIEW -->
+    <section class="view active" id="view-dashboard">
+      <header class="view-header">
+        <div>
+          <h1 class="view-title">Dashboard</h1>
+          <p class="view-subtitle">Sua jornada de estudos em tempo real</p>
+        </div>
+        <div class="header-meta">
+          <div class="date-badge" id="dateBadge"></div>
+        </div>
+      </header>
+
+      <!-- STATS ROW -->
+      <div class="stats-row">
+        <div class="stat-card accent-green">
+          <div class="stat-label">Tópicos Concluídos</div>
+          <div class="stat-value" id="statDone">0</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barDone"></div></div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">Em Andamento</div>
+          <div class="stat-value" id="statProgress">0</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barProgress"></div></div>
+        </div>
+        <div class="stat-card accent-slate">
+          <div class="stat-label">Não Iniciados</div>
+          <div class="stat-value" id="statPending">0</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barPending"></div></div>
+        </div>
+        <div class="stat-card accent-rose">
+          <div class="stat-label">% Geral</div>
+          <div class="stat-value" id="statPercent">0%</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barPercent"></div></div>
+        </div>
+      </div>
+
+      <!-- PROGRESS RING + RECENTES -->
+      <div class="dashboard-grid">
+        <div class="card ring-card">
+          <h3 class="card-title">Progresso Geral</h3>
+          <div class="ring-wrapper">
+            <svg class="ring-svg" viewBox="0 0 160 160">
+              <circle class="ring-bg" cx="80" cy="80" r="64"/>
+              <circle class="ring-fill" id="ringFill" cx="80" cy="80" r="64"
+                stroke-dasharray="402" stroke-dashoffset="402"/>
+            </svg>
+            <div class="ring-label">
+              <span id="ringPercent">0%</span>
+              <small>completo</small>
+            </div>
+          </div>
+          <div class="legend">
+            <span class="legend-dot green"></span>Concluído
+            <span class="legend-dot amber"></span>Andamento
+            <span class="legend-dot slate"></span>Pendente
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Últimas Atualizações</h3>
+          <div class="activity-list" id="activityList">
+            <div class="empty-state">Nenhuma atividade registrada ainda.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Próximos Tópicos</h3>
+          <div class="next-list" id="nextList">
+            <div class="empty-state">Todos concluídos ou não iniciado.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MATERIAS VIEW -->
+    <section class="view" id="view-materias">
+      <header class="view-header">
+        <div>
+          <h1 class="view-title">Matérias</h1>
+          <p class="view-subtitle">Gerencie cada tópico do edital</p>
+        </div>
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">Todos</button>
+          <button class="filter-btn" data-filter="pendente">Pendente</button>
+          <button class="filter-btn" data-filter="andamento">Andamento</button>
+          <button class="filter-btn" data-filter="concluido">Concluído</button>
+        </div>
+      </header>
+
+      <div class="materias-list" id="materiasList"></div>
+    </section>
+
+    <!-- PROGRESSO VIEW -->
+    <section class="view" id="view-progresso">
+      <header class="view-header">
+        <div>
+          <h1 class="view-title">Progresso por Bloco</h1>
+          <p class="view-subtitle">Análise detalhada por área de conhecimento</p>
+        </div>
+      </header>
+      <div class="blocos-grid" id="blocosGrid"></div>
+    </section>
+
+    <!-- CONFIG VIEW -->
+    <section class="view" id="view-config">
+      <header class="view-header">
+        <div>
+          <h1 class="view-title">Configurar Google Sheets</h1>
+          <p class="view-subtitle">Integração simples via URL publicada</p>
+        </div>
+      </header>
+
+      <div class="config-layout">
+        <div class="card config-card">
+          <h3 class="card-title">Como configurar</h3>
+          <ol class="config-steps">
+            <li>
+              <span class="step-num">1</span>
+              <div>
+                <strong>Crie uma planilha no Google Sheets</strong>
+                <p>Com as colunas: <code>materia | topico | status | nota | data</code></p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <div>
+                <strong>Publique a planilha</strong>
+                <p>Arquivo → Compartilhar → Publicar na web → CSV</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <div>
+                <strong>Cole a URL abaixo</strong>
+                <p>A URL de publicação CSV será usada para leitura.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">4</span>
+              <div>
+                <strong>Para escrita (opcional)</strong>
+                <p>Use um Google Apps Script como webhook e cole a URL do script.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <div class="card config-card">
+          <h3 class="card-title">URLs de Integração</h3>
+
+          <div class="form-group">
+            <label class="form-label">URL de Leitura (CSV publicado)</label>
+            <input type="url" id="sheetReadUrl" class="form-input"
+              placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">URL do Apps Script (escrita)</label>
+            <input type="url" id="sheetWriteUrl" class="form-input"
+              placeholder="https://script.google.com/macros/s/.../exec"/>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nome da aba</label>
+            <input type="text" id="sheetName" class="form-input" placeholder="Página1" value="Página1"/>
+          </div>
+
+          <div class="config-btns">
+            <button class="btn-primary" onclick="saveSheetConfig()">Salvar Configuração</button>
+            <button class="btn-secondary" onclick="testSheetConnection()">Testar Conexão</button>
+          </div>
+
+          <div class="config-msg" id="configMsg"></div>
+
+          <div class="script-template">
+            <h4>Template do Apps Script</h4>
+            <pre id="scriptTemplate">function doPost(e) {
+  var sheet = SpreadsheetApp.getActive()
+              .getSheetByName("Página1");
+  var data = JSON.parse(e.postData.contents);
+  
+  // Busca linha existente pelo tópico
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][1] === data.topico) {
+      sheet.getRange(i+1, 3).setValue(data.status);
+      sheet.getRange(i+1, 4).setValue(data.nota);
+      sheet.getRange(i+1, 5).setValue(data.data);
+      return ContentService.createTextOutput("ok");
+    }
+  }
+  // Se não existe, adiciona nova linha
+  sheet.appendRow([data.materia, data.topico,
+                   data.status, data.nota, data.data]);
+  return ContentService.createTextOutput("ok");
+}</pre>
+            <button class="btn-copy" onclick="copyScript()">Copiar Script</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE EDIÇÃO DE TÓPICO -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      <h2 class="modal-title" id="modalTitle">Editar Tópico</h2>
+      <p class="modal-sub" id="modalSub"></p>
+
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <div class="status-selector" id="statusSelector">
+          <button class="status-opt" data-val="pendente">⬜ Pendente</button>
+          <button class="status-opt" data-val="andamento">🔶 Em Andamento</button>
+          <button class="status-opt selected" data-val="concluido">✅ Concluído</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nota / Observação</label>
+        <textarea class="form-input form-textarea" id="modalNota" placeholder="Adicione uma nota sobre este tópico..."></textarea>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn-primary" onclick="saveTopico()">Salvar</button>
+        <button class="btn-secondary" onclick="closeModalDirect()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
